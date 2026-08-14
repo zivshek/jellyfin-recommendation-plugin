@@ -1,4 +1,4 @@
-# Jellyfin Recommendation Plugin Implementation Plan
+# Jellyfin Recommendation Plugin Implementation Plan (IP)
 
 ## Goal
 
