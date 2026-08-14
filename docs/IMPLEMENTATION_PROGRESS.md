@@ -10,6 +10,8 @@ Planning and repository setup are in progress.
 
 - Chose the MVP display strategy: managed Jellyfin collection instead of Jellyfin Web homepage modification.
 - Captured the implementation plan in `docs/IMPLEMENTATION_PLAN.md`.
+- Reviewed `daymade/claude-code-skills` `douban-skill` as a Douban export/sync reference.
+- Added `docs/DOUBAN_SKILL_INTEGRATION.md` to track how to incorporate its CSV, RSS, and Frodo ideas without making the Jellyfin plugin depend on Claude Code/Python/Node at runtime.
 - Added local environment scaffolding:
   - `.env.example` is committed as a safe template.
   - `.env.local` is ignored and reserved for real local testing values.
@@ -25,13 +27,16 @@ Planning and repository setup are in progress.
 2. Scaffold the plugin solution and project.
 3. Add the plugin entry point and configuration model.
 4. Add a minimal configuration page.
-5. Verify the plugin builds.
+5. Add `douban-skill` CSV import tests for `影视.csv`.
+6. Verify the plugin builds.
 
 ## Decisions
 
 - Recommendations must only include existing media from the Jellyfin library.
 - Explicit user ratings should outrank inferred completion signals.
 - Douban support should start with manual import and local cache, then grow into public feed or Frodo-style sync later.
+- The first Douban import target should be the `douban-skill` `影视.csv` output format.
+- Do not shell out to the `douban-skill` scripts from the Jellyfin plugin runtime; port needed sync logic to C# later.
 - Uncertain Douban-to-Jellyfin matches should require review before affecting recommendations.
 - LLM output must be validated before collection updates.
 

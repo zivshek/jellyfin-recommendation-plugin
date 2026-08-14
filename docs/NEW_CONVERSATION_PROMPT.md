@@ -17,6 +17,7 @@ MVP direction:
 
 Important docs:
 - Read docs/IMPLEMENTATION_PLAN.md first.
+- Read docs/DOUBAN_SKILL_INTEGRATION.md before implementing Douban import or sync.
 - Update docs/IMPLEMENTATION_PROGRESS.md after meaningful work.
 - Keep .env.local local and uncommitted.
 - .env.example is the committed template.
@@ -27,7 +28,7 @@ Current planned milestones:
 3. Capture playback events and persist watch history.
 4. Read Jellyfin user data such as Rating, Likes, IsFavorite, PlayCount, Played, and PlayedPercentage.
 5. Index library candidates.
-6. Add Douban CSV/JSON import and local cache.
+6. Add Douban CSV/JSON import and local cache, starting with daymade douban-skill `影视.csv` compatibility.
 7. Add deterministic pre-ranker and LLM reranker.
 8. Create/update the managed recommendation collection.
 9. Add admin actions and scheduled refresh.

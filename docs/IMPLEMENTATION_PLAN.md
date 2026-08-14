@@ -145,6 +145,7 @@ Deliverables:
 
 - Douban adapter interface.
 - Manual CSV/JSON import provider for MVP.
+- Compatibility with `douban-skill` `影视.csv` exports.
 - Local cache table for Douban items:
   - Douban subject ID.
   - Title.
@@ -170,12 +171,17 @@ Future providers:
 
 - Public Douban feed sync for recent changes.
 - Frodo-style full sync behind an explicit experimental flag.
+- Native C# port of the useful `douban-skill` Frodo/RSS behavior once CSV import is stable.
 
 Acceptance checks:
 
 - Imported Douban ratings influence the local taste profile.
 - Uncertain matches do not silently affect recommendations.
 - The plugin works when Douban is disabled.
+
+Reference:
+
+- See `docs/DOUBAN_SKILL_INTEGRATION.md` for the concrete incorporation strategy.
 
 ## Milestone 7: Recommendation Engine
 
