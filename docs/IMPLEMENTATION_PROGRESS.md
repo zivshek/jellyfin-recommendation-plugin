@@ -70,6 +70,7 @@ The code-level MVP implementation is complete and builds/tests locally. Live Jel
 - Added package `meta.json` so the publish output follows Jellyfin plugin manifest conventions.
 - Stamped release/local package versions consistently across the manifest, packaged `meta.json`, and plugin assembly.
 - Added scheduled refresh task.
+- Renamed the scheduled task display text to "Generate and update recommendations" and added plugin-log diagnostics for scheduled runs.
 - Added scheduled/full-refresh guard so Douban import is skipped when the Douban provider is disabled.
 - Added a minimal LLM request throttle and structured LLM request/response-count logs.
 - Added repeatable schema upgrade handling for Douban provider-ID columns.
