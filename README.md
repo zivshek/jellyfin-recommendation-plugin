@@ -55,6 +55,40 @@ artifacts\Recommendations\
 
 The package includes `meta.json`, the plugin DLL, and required SQLite dependencies.
 
+To build the ZIP and Jellyfin plugin repository manifest used by releases, run:
+
+```powershell
+.\scripts\package-release.ps1 -Repository zivshek/jellyfin-recommendation-plugin -Tag v0.1.0
+```
+
+This emits:
+
+```text
+artifacts\repository\Jellyfin.Plugin.Recommendations_0.1.0.0.zip
+artifacts\repository\manifest.json
+```
+
+## Install From Plugin Repository
+
+After a tagged GitHub release workflow has run, add this repository URL in Jellyfin under **Dashboard -> Plugins -> Repositories**:
+
+```text
+https://zivshek.github.io/jellyfin-recommendation-plugin/manifest.json
+```
+
+Then open **Catalog**, install **Recommendations**, and restart Jellyfin if prompted.
+
+If GitHub Pages is not enabled yet, use the exact release asset URL for the generated manifest from the release page, or enable Pages with GitHub Actions as the source.
+
+To publish a new catalog release:
+
+```powershell
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The release workflow runs tests, creates the plugin ZIP, uploads `manifest.json` and the ZIP to the GitHub Release, and publishes `manifest.json` to GitHub Pages.
+
 For local Jellyfin testing, copy the built plugin files into a subfolder of your Jellyfin plugin directory, then restart Jellyfin. The direct-install default on Windows is:
 
 ```text
