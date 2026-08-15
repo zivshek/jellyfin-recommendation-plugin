@@ -27,6 +27,7 @@ public sealed class RecommendationsController : ControllerBase
     private readonly RecommendationOrchestrator _orchestrator;
     private readonly ManagedCollectionService _collectionService;
     private readonly IUserManager _userManager;
+    private readonly IPluginDiagnosticLog _diagnosticLog;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="RecommendationsController"/> class.
@@ -38,7 +39,8 @@ public sealed class RecommendationsController : ControllerBase
         ItemMatchingService itemMatchingService,
         RecommendationOrchestrator orchestrator,
         ManagedCollectionService collectionService,
-        IUserManager userManager)
+        IUserManager userManager,
+        IPluginDiagnosticLog diagnosticLog)
     {
         _repository = repository;
         _libraryIndexService = libraryIndexService;
@@ -47,6 +49,7 @@ public sealed class RecommendationsController : ControllerBase
         _orchestrator = orchestrator;
         _collectionService = collectionService;
         _userManager = userManager;
+        _diagnosticLog = diagnosticLog;
     }
 
     /// <summary>
@@ -69,94 +72,175 @@ public sealed class RecommendationsController : ControllerBase
     }
 
     /// <summary>
+    /// Gets plugin diagnostic log metadata.
+    /// </summary>
+    [HttpGet("LogInfo")]
+    public RecommendationLogInfo GetLogInfo()
+        => new(_diagnosticLog.LogPath);
+
+    /// <summary>
+    /// Opens the plugin diagnostic log.
+    /// </summary>
+    [HttpGet("Log")]
+    [Produces("text/plain")]
+    public async Task<ContentResult> GetLog(CancellationToken cancellationToken)
+    {
+        var log = await _diagnosticLog.ReadAsync(cancellationToken).ConfigureAwait(false);
+        return Content(log, "text/plain; charset=utf-8");
+    }
+
+    /// <summary>
     /// Rebuilds the local library candidate index.
     /// </summary>
     [HttpPost("RebuildIndex")]
     public Task<OperationResult> RebuildIndex(CancellationToken cancellationToken)
-        => _libraryIndexService.RebuildAsync(cancellationToken);
+        => ExecuteLoggedActionAsync(
+            "RebuildIndex",
+            null,
+            () => _libraryIndexService.RebuildAsync(cancellationToken),
+            cancellationToken);
 
     /// <summary>
     /// Imports the configured or requested Douban CSV path.
     /// </summary>
     [HttpPost("ImportDouban")]
-    public Task<OperationResult> ImportDouban([FromBody] ImportDoubanRequest request, CancellationToken cancellationToken)
+    public Task<OperationResult> ImportDouban([FromBody] ImportDoubanRequest? request, CancellationToken cancellationToken)
     {
         var configuration = Plugin.Instance?.Configuration ?? new Configuration.PluginConfiguration();
-        var path = string.IsNullOrWhiteSpace(request.Path) ? configuration.DoubanExportPath : request.Path;
-        if (!TryResolveUserId(request.UserId, out var userId, out var error))
+        var path = string.IsNullOrWhiteSpace(request?.Path) ? configuration.DoubanExportPath : request.Path;
+        if (!TryResolveUserId(request?.UserId, out var userId, out var error))
         {
             return Task.FromResult(error);
         }
 
-        return ImportAndMatchAsync(path, userId, cancellationToken);
+        return ExecuteLoggedActionAsync(
+            "ImportDouban",
+            userId,
+            () => ImportAndMatchAsync(path, userId, cancellationToken),
+            cancellationToken);
     }
 
     /// <summary>
     /// Matches imported Douban items to Jellyfin items.
     /// </summary>
     [HttpPost("MatchDouban")]
-    public Task<OperationResult> MatchDouban([FromBody] UserActionRequest request, CancellationToken cancellationToken)
+    public Task<OperationResult> MatchDouban([FromBody] UserActionRequest? request, CancellationToken cancellationToken)
     {
-        return !TryResolveUserId(request.UserId, out var userId, out var error)
+        return !TryResolveUserId(request?.UserId, out var userId, out var error)
             ? Task.FromResult(error)
-            : _itemMatchingService.MatchDoubanAsync(userId, cancellationToken);
+            : ExecuteLoggedActionAsync(
+                "MatchDouban",
+                userId,
+                () => _itemMatchingService.MatchDoubanAsync(userId, cancellationToken),
+                cancellationToken);
     }
 
     /// <summary>
     /// Generates recommendations for a user.
     /// </summary>
     [HttpPost("Generate")]
-    public Task<OperationResult> Generate([FromBody] UserActionRequest request, CancellationToken cancellationToken)
+    public Task<OperationResult> Generate([FromBody] UserActionRequest? request, CancellationToken cancellationToken)
     {
         var configuration = Plugin.Instance?.Configuration ?? new Configuration.PluginConfiguration();
-        if (!TryResolveUserId(request.UserId, out var userId, out var error))
+        if (!TryResolveUserId(request?.UserId, out var userId, out var error))
         {
             return Task.FromResult(error);
         }
 
-        return _orchestrator.GenerateAsync(userId, configuration, cancellationToken);
+        return ExecuteLoggedActionAsync(
+            "Generate",
+            userId,
+            () => _orchestrator.GenerateAsync(userId, configuration, cancellationToken),
+            cancellationToken);
     }
 
     /// <summary>
     /// Updates the managed collection for a user.
     /// </summary>
     [HttpPost("UpdateCollection")]
-    public Task<OperationResult> UpdateCollection([FromBody] UserActionRequest request, CancellationToken cancellationToken)
+    public Task<OperationResult> UpdateCollection([FromBody] UserActionRequest? request, CancellationToken cancellationToken)
     {
         var configuration = Plugin.Instance?.Configuration ?? new Configuration.PluginConfiguration();
-        if (!TryResolveUserId(request.UserId, out var userId, out var error))
+        if (!TryResolveUserId(request?.UserId, out var userId, out var error))
         {
             return Task.FromResult(error);
         }
 
-        return _collectionService.UpdateCollectionAsync(userId, configuration, cancellationToken);
+        return ExecuteLoggedActionAsync(
+            "UpdateCollection",
+            userId,
+            () => _collectionService.UpdateCollectionAsync(userId, configuration, cancellationToken),
+            cancellationToken);
     }
 
     /// <summary>
     /// Runs the full MVP refresh flow for one user.
     /// </summary>
     [HttpPost("Refresh")]
-    public async Task<OperationResult> Refresh([FromBody] UserActionRequest request, CancellationToken cancellationToken)
+    public async Task<OperationResult> Refresh([FromBody] UserActionRequest? request, CancellationToken cancellationToken)
     {
         var configuration = Plugin.Instance?.Configuration ?? new Configuration.PluginConfiguration();
-        if (!TryResolveUserId(request.UserId, out var userId, out var error))
+        if (!TryResolveUserId(request?.UserId, out var userId, out var error))
         {
             return error;
         }
 
-        await _libraryIndexService.RebuildAsync(cancellationToken).ConfigureAwait(false);
-        if (IsDoubanEnabled(configuration) && !string.IsNullOrWhiteSpace(configuration.DoubanExportPath))
-        {
-            await ImportAndMatchAsync(configuration.DoubanExportPath, userId, cancellationToken).ConfigureAwait(false);
-        }
+        return await ExecuteLoggedActionAsync(
+            "Refresh",
+            userId,
+            async () =>
+            {
+                await _libraryIndexService.RebuildAsync(cancellationToken).ConfigureAwait(false);
+                if (IsDoubanEnabled(configuration) && !string.IsNullOrWhiteSpace(configuration.DoubanExportPath))
+                {
+                    await ImportAndMatchAsync(configuration.DoubanExportPath, userId, cancellationToken).ConfigureAwait(false);
+                }
 
-        var generated = await _orchestrator.GenerateAsync(userId, configuration, cancellationToken).ConfigureAwait(false);
-        if (!generated.Success)
-        {
-            return generated;
-        }
+                var generated = await _orchestrator.GenerateAsync(userId, configuration, cancellationToken).ConfigureAwait(false);
+                if (!generated.Success)
+                {
+                    return generated;
+                }
 
-        return await _collectionService.UpdateCollectionAsync(userId, configuration, cancellationToken).ConfigureAwait(false);
+                return await _collectionService.UpdateCollectionAsync(userId, configuration, cancellationToken).ConfigureAwait(false);
+            },
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<OperationResult> ExecuteLoggedActionAsync(
+        string actionName,
+        Guid? userId,
+        Func<Task<OperationResult>> action,
+        CancellationToken cancellationToken)
+    {
+        var userText = userId.HasValue ? $" user={userId.Value}" : string.Empty;
+        await AppendLogSafeAsync($"{actionName} started{userText}.", cancellationToken).ConfigureAwait(false);
+
+        try
+        {
+            var result = await action().ConfigureAwait(false);
+            await AppendLogSafeAsync(
+                $"{actionName} completed{userText}: success={result.Success}; affected={result.AffectedCount}; message=\"{result.Message}\"",
+                cancellationToken).ConfigureAwait(false);
+            return result;
+        }
+        catch (Exception ex)
+        {
+            await AppendLogSafeAsync($"{actionName} failed{userText}: {ex}", cancellationToken).ConfigureAwait(false);
+            throw;
+        }
+    }
+
+    private async Task AppendLogSafeAsync(string message, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _diagnosticLog.AppendAsync(message, cancellationToken).ConfigureAwait(false);
+        }
+        catch
+        {
+            // Logging must never be the reason a manual action fails.
+        }
     }
 
     private static bool TryResolveUserId(Guid? requestUserId, out Guid userId, out OperationResult error)
@@ -204,3 +288,8 @@ public sealed record UserActionRequest(Guid? UserId);
 /// User option for manual recommendation actions.
 /// </summary>
 public sealed record RecommendationUser(Guid Id, string Name);
+
+/// <summary>
+/// Plugin diagnostic log metadata.
+/// </summary>
+public sealed record RecommendationLogInfo(string Path);

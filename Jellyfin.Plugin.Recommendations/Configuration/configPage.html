@@ -74,7 +74,7 @@
                 <div class="verticalSection">
                     <div class="selectContainer">
                         <label class="selectLabel" for="RecommendationsManualUserId">User</label>
-                        <select id="RecommendationsManualUserId" class="emby-select-withcolor emby-select"></select>
+                        <select is="emby-select" id="RecommendationsManualUserId" class="emby-select-withcolor emby-select"></select>
                     </div>
                     <button is="emby-button" type="button" class="raised block emby-button" id="RecommendationsRebuildIndex">
                         <span>Rebuild Index</span>
@@ -95,6 +95,10 @@
                         <span>Generate and Update Collection</span>
                     </button>
                     <div id="RecommendationsStatus" class="fieldDescription"></div>
+                    <div class="fieldDescription">
+                        <a id="RecommendationsLogLink" href="#" target="_blank" rel="noopener noreferrer">Open plugin log</a>
+                        <div id="RecommendationsLogPath"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -130,6 +134,7 @@
                             }
                         });
                         loadRecommendationUsers();
+                        loadRecommendationsLogInfo();
                         loadRecommendationsStatus();
                         Dashboard.hideLoadingMsg();
                     }, handleRecommendationsError);
@@ -182,6 +187,10 @@
                     return fallback;
                 }
 
+                if (typeof value === 'string') {
+                    value = parseJsonResponse(value);
+                }
+
                 if (value[camelName] !== undefined && value[camelName] !== null) {
                     return value[camelName];
                 }
@@ -193,11 +202,39 @@
                 return fallback;
             }
 
+            function parseJsonResponse(value) {
+                if (!value || typeof value !== 'string') {
+                    return value || {};
+                }
+
+                try {
+                    return JSON.parse(value);
+                } catch (error) {
+                    return {};
+                }
+            }
+
+            function escapeHtml(value) {
+                return String(value || '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+            }
+
+            function formatCount(value) {
+                var parsed = parseInt(value, 10);
+                return isNaN(parsed) ? 0 : parsed;
+            }
+
             function getResultMessage(result) {
+                result = parseJsonResponse(result);
                 return readProperty(result, 'message', 'Message', 'Done');
             }
 
             function getResultSuccess(result) {
+                result = parseJsonResponse(result);
                 return readProperty(result, 'success', 'Success', true);
             }
 
@@ -207,7 +244,8 @@
                     type: 'POST',
                     url: ApiClient.getUrl('Recommendations/' + path),
                     data: JSON.stringify(body || {}),
-                    contentType: 'application/json'
+                    contentType: 'application/json',
+                    dataType: 'json'
                 }).then(function(result) {
                     setRecommendationsStatus(getResultMessage(result));
                     Dashboard.hideLoadingMsg();
@@ -235,7 +273,8 @@
                 select.appendChild(loadingOption);
                 return ApiClient.ajax({
                     type: 'GET',
-                    url: ApiClient.getUrl('Recommendations/Users')
+                    url: ApiClient.getUrl('Recommendations/Users'),
+                    dataType: 'json'
                 }).then(function(users) {
                     populateRecommendationUsers(users);
                 }, function(error) {
@@ -248,6 +287,7 @@
             }
 
             function populateRecommendationUsers(users) {
+                users = parseJsonResponse(users);
                 var userList = users || [];
                 if (userList.items || userList.Items) {
                     userList = userList.items || userList.Items;
@@ -290,8 +330,50 @@
                 }
 
                 if (!select.value && select.options.length > 0) {
-                        select.selectedIndex = 0;
+                    select.selectedIndex = 0;
+                }
+            }
+
+            function loadRecommendationsLogInfo() {
+                var link = document.querySelector('#RecommendationsLogLink');
+                var path = document.querySelector('#RecommendationsLogPath');
+                link.href = ApiClient.getUrl('Recommendations/Log');
+                return ApiClient.ajax({
+                    type: 'GET',
+                    url: ApiClient.getUrl('Recommendations/LogInfo'),
+                    dataType: 'json'
+                }).then(function(info) {
+                    info = parseJsonResponse(info);
+                    path.innerText = 'Log file: ' + readProperty(info, 'path', 'Path', 'recommendations.log');
+                }, function() {
+                    path.innerText = 'Log file: recommendations.log';
+                });
+            }
+
+            function openRecommendationsLog(e) {
+                e.preventDefault();
+                var logWindow = window.open('', '_blank');
+                Dashboard.showLoadingMsg();
+                ApiClient.ajax({
+                    type: 'GET',
+                    url: ApiClient.getUrl('Recommendations/Log'),
+                    dataType: 'text'
+                }).then(function(logText) {
+                    Dashboard.hideLoadingMsg();
+                    if (logWindow) {
+                        logWindow.document.open();
+                        logWindow.document.write('<!DOCTYPE html><html><head><title>Recommendations Log</title></head><body><pre>' + escapeHtml(logText) + '</pre></body></html>');
+                        logWindow.document.close();
+                    } else {
+                        setRecommendationsStatus(logText || 'No recommendation plugin log entries yet.');
                     }
+                }, function(error) {
+                    if (logWindow) {
+                        logWindow.close();
+                    }
+
+                    handleRecommendationsError(error);
+                });
             }
 
             function getSelectedUserBody() {
@@ -306,11 +388,13 @@
             function loadRecommendationsStatus() {
                 ApiClient.ajax({
                     type: 'GET',
-                    url: ApiClient.getUrl('Recommendations/Status')
+                    url: ApiClient.getUrl('Recommendations/Status'),
+                    dataType: 'json'
                 }).then(function(status) {
-                    var libraryItemCount = readProperty(status, 'libraryItemCount', 'LibraryItemCount', 0);
-                    var doubanItemCount = readProperty(status, 'doubanItemCount', 'DoubanItemCount', 0);
-                    var recommendationRunCount = readProperty(status, 'recommendationRunCount', 'RecommendationRunCount', 0);
+                    status = parseJsonResponse(status);
+                    var libraryItemCount = formatCount(readProperty(status, 'libraryItemCount', 'LibraryItemCount', 0));
+                    var doubanItemCount = formatCount(readProperty(status, 'doubanItemCount', 'DoubanItemCount', 0));
+                    var recommendationRunCount = formatCount(readProperty(status, 'recommendationRunCount', 'RecommendationRunCount', 0));
                     var lastLibraryIndexedAt = readProperty(status, 'lastLibraryIndexedAt', 'LastLibraryIndexedAt', null);
                     var lastDoubanImportAt = readProperty(status, 'lastDoubanImportAt', 'LastDoubanImportAt', null);
                     var lastRecommendationRunAt = readProperty(status, 'lastRecommendationRunAt', 'LastRecommendationRunAt', null);
@@ -379,6 +463,9 @@
                         postRecommendationsAction('MatchDouban', body);
                     }
                 });
+
+            document.querySelector('#RecommendationsLogLink')
+                .addEventListener('click', openRecommendationsLog);
         </script>
     </div>
 </body>

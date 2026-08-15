@@ -87,6 +87,8 @@ https://github.com/zivshek/jellyfin-recommendation-plugin/releases/latest/downlo
 
 Then open **Catalog**, install **Recommendations**, and restart Jellyfin if prompted.
 
+The settings page includes an **Open plugin log** link. The plugin also writes the same log to `recommendations.log` in Jellyfin's configured log directory.
+
 To publish a new catalog release:
 
 ```powershell

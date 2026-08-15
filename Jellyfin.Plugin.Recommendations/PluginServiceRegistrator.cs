@@ -23,6 +23,11 @@ public sealed class PluginServiceRegistrator : IPluginServiceRegistrator
             var dataPath = Path.Combine(paths.DataPath, "recommendations");
             return new RecommendationRepository(Path.Combine(dataPath, "recommendations.db"));
         });
+        serviceCollection.AddSingleton<IPluginDiagnosticLog>(serviceProvider =>
+        {
+            var paths = serviceProvider.GetRequiredService<IApplicationPaths>();
+            return new PluginDiagnosticLog(Path.Combine(paths.LogDirectoryPath, "recommendations.log"));
+        });
 
         serviceCollection.AddSingleton<PlaybackHistoryService>();
         serviceCollection.AddSingleton<DoubanCsvImportService>();
