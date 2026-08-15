@@ -12,9 +12,6 @@ public class PluginConfiguration : BasePluginConfiguration
     /// </summary>
     public PluginConfiguration()
     {
-        JellyfinBaseUrl = string.Empty;
-        TestApiKey = string.Empty;
-        TestUserId = string.Empty;
         LlmProvider = "openai-compatible";
         LlmBaseUrl = string.Empty;
         LlmApiKey = string.Empty;
@@ -28,21 +25,6 @@ public class PluginConfiguration : BasePluginConfiguration
         IncludeWatchedItems = false;
         ScheduledRefreshIntervalHours = 24;
     }
-
-    /// <summary>
-    /// Gets or sets the Jellyfin base URL used by local test commands.
-    /// </summary>
-    public string JellyfinBaseUrl { get; set; }
-
-    /// <summary>
-    /// Gets or sets a Jellyfin API key used only for local/manual test flows.
-    /// </summary>
-    public string TestApiKey { get; set; }
-
-    /// <summary>
-    /// Gets or sets the Jellyfin user ID used by local/manual test flows.
-    /// </summary>
-    public string TestUserId { get; set; }
 
     /// <summary>
     /// Gets or sets the LLM provider identifier.

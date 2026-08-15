@@ -58,6 +58,8 @@ The code-level MVP implementation is complete and builds/tests locally. Live Jel
   - `POST /Recommendations/Refresh`
 - Added configuration-page controls and manual action buttons for the MVP flow.
 - Added separate admin buttons for test connection, rebuild index, Douban import/match, recommendation generation, collection update, and full refresh.
+- Removed self-server URL/API key/test user settings from plugin runtime configuration; manual actions now use a Jellyfin user picker.
+- Added per-user managed collection naming with `{username}`/`{user}` template support and a multi-user default.
 - Added admin status fields for last library index, last Douban import, and last recommendation run.
 - Added admin-page error handling so failed manual actions surface actionable status text.
 - Added package `meta.json` so the publish output follows Jellyfin plugin manifest conventions.
@@ -66,7 +68,7 @@ The code-level MVP implementation is complete and builds/tests locally. Live Jel
 - Added a minimal LLM request throttle and structured LLM request/response-count logs.
 - Added repeatable schema upgrade handling for Douban provider-ID columns.
 - Added unit tests for storage, playback aggregation, Douban CSV/JSON parsing/import, provider-ID matching, schema upgrades, recommendation validation/scoring, LLM eligibility validation, and collection diffing.
-- Verified `dotnet test Jellyfin.Plugin.Recommendations.sln --configuration Release` succeeds with 20 passing tests.
+- Verified `dotnet test Jellyfin.Plugin.Recommendations.sln --configuration Release` succeeds with 22 passing tests.
 - Verified `dotnet publish Jellyfin.Plugin.Recommendations/Jellyfin.Plugin.Recommendations.csproj --configuration Release --output artifacts/Recommendations` creates a copyable plugin folder with SQLite dependencies.
 - Verified the publish output includes `meta.json`.
 
@@ -104,8 +106,6 @@ Use `.env.local` for private local values:
 ```dotenv
 JELLYFIN_BASE_URL=http://localhost:8096
 JELLYFIN_API_KEY=
-JELLYFIN_TEST_USER_ID=
-JELLYFIN_RECOMMENDATION_COLLECTION_NAME=Recommended For You
 LLM_PROVIDER=openai-compatible
 LLM_BASE_URL=
 LLM_API_KEY=

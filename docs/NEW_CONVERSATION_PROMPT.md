@@ -24,12 +24,12 @@ Important docs:
 
 Current status:
 - The code-level MVP is implemented.
-- `dotnet test Jellyfin.Plugin.Recommendations.sln --configuration Release` passes with 20 tests.
+- `dotnet test Jellyfin.Plugin.Recommendations.sln --configuration Release` passes with 22 tests.
 - `dotnet publish Jellyfin.Plugin.Recommendations\Jellyfin.Plugin.Recommendations.csproj --configuration Release --output artifacts\Recommendations` creates a copyable plugin folder with `meta.json` and SQLite dependencies.
 - Remaining checks require a running Jellyfin server: install the artifact, confirm the plugin loads, verify the dashboard page, play/stop a test item, and confirm the managed collection updates.
 
 Local testing:
-Use .env.local for Jellyfin URL, API key, test user ID, LLM settings, and Douban import settings. Never commit real secrets. `scripts\test-jellyfin-status.ps1` is a read-only smoke probe for the configured Jellyfin URL.
+Use .env.local for the external Jellyfin URL/API key used by smoke scripts plus LLM and Douban import settings. Never commit real secrets. The plugin itself runs inside Jellyfin and does not need a Jellyfin URL or API key. `scripts\test-jellyfin-status.ps1` is a read-only smoke probe for the configured Jellyfin URL.
 
 Engineering constraints:
 - Follow existing repo style as it emerges.

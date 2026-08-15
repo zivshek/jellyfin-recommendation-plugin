@@ -18,14 +18,16 @@ public sealed class ManagedCollectionService
 {
     private readonly ICollectionManager _collectionManager;
     private readonly IRecommendationRepository _repository;
+    private readonly IUserManager _userManager;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ManagedCollectionService"/> class.
     /// </summary>
-    public ManagedCollectionService(ICollectionManager collectionManager, IRecommendationRepository repository)
+    public ManagedCollectionService(ICollectionManager collectionManager, IRecommendationRepository repository, IUserManager userManager)
     {
         _collectionManager = collectionManager;
         _repository = repository;
+        _userManager = userManager;
     }
 
     /// <summary>
@@ -78,9 +80,12 @@ public sealed class ManagedCollectionService
         IReadOnlyList<RecommendationItem> recommendations,
         CancellationToken cancellationToken)
     {
-        var name = string.IsNullOrWhiteSpace(configuration.RecommendationCollectionName)
-            ? "Recommended For You"
-            : configuration.RecommendationCollectionName;
+        var name = BuildCollectionName(
+            string.IsNullOrWhiteSpace(configuration.RecommendationCollectionName)
+                ? "Recommended for {username}"
+                : configuration.RecommendationCollectionName,
+            GetUsername(userId),
+            userId);
         var boxSet = await _collectionManager.CreateCollectionAsync(new CollectionCreationOptions
         {
             Name = name,
@@ -93,6 +98,21 @@ public sealed class ManagedCollectionService
         await _repository.UpsertManagedCollectionAsync(collection, cancellationToken).ConfigureAwait(false);
         return collection;
     }
+
+    public static string BuildCollectionName(string template, string? username, Guid userId)
+    {
+        if (string.IsNullOrWhiteSpace(username))
+        {
+            username = userId.ToString("N")[..8];
+        }
+
+        return template
+            .Replace("{username}", username, StringComparison.OrdinalIgnoreCase)
+            .Replace("{user}", username, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private string? GetUsername(Guid userId)
+        => _userManager.GetUsers().FirstOrDefault(user => user.Id == userId)?.Username;
 }
 
 /// <summary>

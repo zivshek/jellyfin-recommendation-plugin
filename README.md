@@ -15,6 +15,7 @@ The MVP plan is to track local watch history, enrich it with explicit Jellyfin r
 - Rejects watched LLM recommendations unless watched items are explicitly enabled.
 - Skips scheduled Douban imports when the Douban provider is disabled.
 - Creates and updates per-user managed recommendation collections.
+- Uses a Jellyfin user picker for manual per-user actions; the plugin does not need a Jellyfin URL or API key at runtime.
 - Provides admin API actions, configuration-page buttons, and a scheduled refresh task.
 - Includes unit tests for storage, playback aggregation, Douban import/matching, validation, scoring, and collection diffing.
 

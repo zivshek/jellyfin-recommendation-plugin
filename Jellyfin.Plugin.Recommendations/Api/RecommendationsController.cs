@@ -1,9 +1,12 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.Recommendations.Data;
 using Jellyfin.Plugin.Recommendations.Domain;
 using Jellyfin.Plugin.Recommendations.Services;
+using MediaBrowser.Controller.Library;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -23,6 +26,7 @@ public sealed class RecommendationsController : ControllerBase
     private readonly ItemMatchingService _itemMatchingService;
     private readonly RecommendationOrchestrator _orchestrator;
     private readonly ManagedCollectionService _collectionService;
+    private readonly IUserManager _userManager;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="RecommendationsController"/> class.
@@ -33,7 +37,8 @@ public sealed class RecommendationsController : ControllerBase
         IDoubanImportService doubanImportService,
         ItemMatchingService itemMatchingService,
         RecommendationOrchestrator orchestrator,
-        ManagedCollectionService collectionService)
+        ManagedCollectionService collectionService,
+        IUserManager userManager)
     {
         _repository = repository;
         _libraryIndexService = libraryIndexService;
@@ -41,6 +46,7 @@ public sealed class RecommendationsController : ControllerBase
         _itemMatchingService = itemMatchingService;
         _orchestrator = orchestrator;
         _collectionService = collectionService;
+        _userManager = userManager;
     }
 
     /// <summary>
@@ -49,6 +55,18 @@ public sealed class RecommendationsController : ControllerBase
     [HttpGet("Status")]
     public Task<PluginStatus> GetStatus(CancellationToken cancellationToken)
         => _repository.GetStatusAsync(cancellationToken);
+
+    /// <summary>
+    /// Gets Jellyfin users for manual per-user actions.
+    /// </summary>
+    [HttpGet("Users")]
+    public IReadOnlyList<RecommendationUser> GetUsers()
+    {
+        return _userManager.GetUsers()
+            .Select(static user => new RecommendationUser(user.Id, user.Username))
+            .OrderBy(static user => user.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
 
     /// <summary>
     /// Rebuilds the local library candidate index.
@@ -65,7 +83,11 @@ public sealed class RecommendationsController : ControllerBase
     {
         var configuration = Plugin.Instance?.Configuration ?? new Configuration.PluginConfiguration();
         var path = string.IsNullOrWhiteSpace(request.Path) ? configuration.DoubanExportPath : request.Path;
-        var userId = ResolveUserId(request.UserId, configuration.TestUserId);
+        if (!TryResolveUserId(request.UserId, out var userId, out var error))
+        {
+            return Task.FromResult(error);
+        }
+
         return ImportAndMatchAsync(path, userId, cancellationToken);
     }
 
@@ -75,8 +97,9 @@ public sealed class RecommendationsController : ControllerBase
     [HttpPost("MatchDouban")]
     public Task<OperationResult> MatchDouban([FromBody] UserActionRequest request, CancellationToken cancellationToken)
     {
-        var configuration = Plugin.Instance?.Configuration ?? new Configuration.PluginConfiguration();
-        return _itemMatchingService.MatchDoubanAsync(ResolveUserId(request.UserId, configuration.TestUserId), cancellationToken);
+        return !TryResolveUserId(request.UserId, out var userId, out var error)
+            ? Task.FromResult(error)
+            : _itemMatchingService.MatchDoubanAsync(userId, cancellationToken);
     }
 
     /// <summary>
@@ -86,7 +109,11 @@ public sealed class RecommendationsController : ControllerBase
     public Task<OperationResult> Generate([FromBody] UserActionRequest request, CancellationToken cancellationToken)
     {
         var configuration = Plugin.Instance?.Configuration ?? new Configuration.PluginConfiguration();
-        var userId = ResolveUserId(request.UserId, configuration.TestUserId);
+        if (!TryResolveUserId(request.UserId, out var userId, out var error))
+        {
+            return Task.FromResult(error);
+        }
+
         return _orchestrator.GenerateAsync(userId, configuration, cancellationToken);
     }
 
@@ -97,7 +124,11 @@ public sealed class RecommendationsController : ControllerBase
     public Task<OperationResult> UpdateCollection([FromBody] UserActionRequest request, CancellationToken cancellationToken)
     {
         var configuration = Plugin.Instance?.Configuration ?? new Configuration.PluginConfiguration();
-        var userId = ResolveUserId(request.UserId, configuration.TestUserId);
+        if (!TryResolveUserId(request.UserId, out var userId, out var error))
+        {
+            return Task.FromResult(error);
+        }
+
         return _collectionService.UpdateCollectionAsync(userId, configuration, cancellationToken);
     }
 
@@ -108,7 +139,11 @@ public sealed class RecommendationsController : ControllerBase
     public async Task<OperationResult> Refresh([FromBody] UserActionRequest request, CancellationToken cancellationToken)
     {
         var configuration = Plugin.Instance?.Configuration ?? new Configuration.PluginConfiguration();
-        var userId = ResolveUserId(request.UserId, configuration.TestUserId);
+        if (!TryResolveUserId(request.UserId, out var userId, out var error))
+        {
+            return error;
+        }
+
         await _libraryIndexService.RebuildAsync(cancellationToken).ConfigureAwait(false);
         if (IsDoubanEnabled(configuration) && !string.IsNullOrWhiteSpace(configuration.DoubanExportPath))
         {
@@ -124,14 +159,18 @@ public sealed class RecommendationsController : ControllerBase
         return await _collectionService.UpdateCollectionAsync(userId, configuration, cancellationToken).ConfigureAwait(false);
     }
 
-    private static Guid ResolveUserId(Guid? requestUserId, string configuredUserId)
+    private static bool TryResolveUserId(Guid? requestUserId, out Guid userId, out OperationResult error)
     {
         if (requestUserId.HasValue && requestUserId.Value != Guid.Empty)
         {
-            return requestUserId.Value;
+            userId = requestUserId.Value;
+            error = new OperationResult(true, string.Empty);
+            return true;
         }
 
-        return Guid.TryParse(configuredUserId, out var userId) ? userId : Guid.Empty;
+        userId = Guid.Empty;
+        error = new OperationResult(false, "Select a Jellyfin user before running this action.");
+        return false;
     }
 
     private async Task<OperationResult> ImportAndMatchAsync(string path, Guid userId, CancellationToken cancellationToken)
@@ -160,3 +199,8 @@ public sealed record ImportDoubanRequest(Guid? UserId, string? Path);
 /// Request body for user-scoped manual actions.
 /// </summary>
 public sealed record UserActionRequest(Guid? UserId);
+
+/// <summary>
+/// User option for manual recommendation actions.
+/// </summary>
+public sealed record RecommendationUser(Guid Id, string Name);

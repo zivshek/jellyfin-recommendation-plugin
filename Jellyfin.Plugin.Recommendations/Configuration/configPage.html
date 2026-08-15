@@ -10,20 +10,6 @@
             <div class="content-primary">
                 <form id="RecommendationsConfigForm">
                     <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="JellyfinBaseUrl">Jellyfin Base URL</label>
-                        <input id="JellyfinBaseUrl" name="JellyfinBaseUrl" type="url" is="emby-input" />
-                        <div class="fieldDescription">Used by local and manual test flows.</div>
-                    </div>
-                    <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="TestApiKey">Test API Key</label>
-                        <input id="TestApiKey" name="TestApiKey" type="password" is="emby-input" />
-                        <div class="fieldDescription">Stored by Jellyfin plugin configuration. Leave blank until manual testing is needed.</div>
-                    </div>
-                    <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="TestUserId">Test User ID</label>
-                        <input id="TestUserId" name="TestUserId" type="text" is="emby-input" />
-                    </div>
-                    <div class="inputContainer">
                         <label class="inputLabel inputLabelUnfocused" for="RecommendationCollectionName">Recommendation Collection Name</label>
                         <input id="RecommendationCollectionName" name="RecommendationCollectionName" type="text" is="emby-input" />
                     </div>
@@ -86,6 +72,10 @@
                     </div>
                 </form>
                 <div class="verticalSection">
+                    <div class="selectContainer">
+                        <label class="selectLabel" for="RecommendationsManualUserId">User</label>
+                        <select is="emby-select" id="RecommendationsManualUserId" class="emby-select-withcolor emby-select"></select>
+                    </div>
                     <button is="emby-button" type="button" class="raised block emby-button" id="RecommendationsTestConnection">
                         <span>Test Jellyfin Connection</span>
                     </button>
@@ -115,9 +105,6 @@
             var RecommendationsConfig = {
                 pluginUniqueId: 'e72f3148-e8c8-4f3c-a3f1-3cbce4487b8f',
                 fields: [
-                    'JellyfinBaseUrl',
-                    'TestApiKey',
-                    'TestUserId',
                     'RecommendationCollectionName',
                     'RecommendationLimit',
                     'IncludeWatchedItems',
@@ -145,6 +132,7 @@
                                 element.value = config[field] || '';
                             }
                         });
+                        loadRecommendationUsers();
                         loadRecommendationsStatus();
                         Dashboard.hideLoadingMsg();
                     }, handleRecommendationsError);
@@ -204,9 +192,42 @@
                 }, handleRecommendationsError);
             }
 
-            function getTestUserIdOrNull() {
-                var value = document.querySelector('#TestUserId').value;
-                return value && value.trim() ? value.trim() : null;
+            function getSelectedUserId() {
+                var value = document.querySelector('#RecommendationsManualUserId').value;
+                if (!value) {
+                    throw new Error('Select a Jellyfin user before running this action.');
+                }
+
+                return value;
+            }
+
+            function loadRecommendationUsers() {
+                return ApiClient.ajax({
+                    type: 'GET',
+                    url: ApiClient.getUrl('Recommendations/Users')
+                }).then(function(users) {
+                    var select = document.querySelector('#RecommendationsManualUserId');
+                    select.innerHTML = '';
+                    (users || []).forEach(function(user) {
+                        var option = document.createElement('option');
+                        option.value = user.id || user.Id;
+                        option.innerText = user.name || user.Name || option.value;
+                        select.appendChild(option);
+                    });
+
+                    if (!select.value && select.options.length > 0) {
+                        select.selectedIndex = 0;
+                    }
+                }, handleRecommendationsError);
+            }
+
+            function getSelectedUserBody() {
+                try {
+                    return { userId: getSelectedUserId() };
+                } catch (error) {
+                    handleRecommendationsError(error);
+                    return null;
+                }
             }
 
             function loadRecommendationsStatus() {
@@ -253,38 +274,43 @@
 
             document.querySelector('#RecommendationsImportDouban')
                 .addEventListener('click', function() {
-                    postRecommendationsAction('ImportDouban', {
-                        userId: getTestUserIdOrNull(),
-                        path: document.querySelector('#DoubanExportPath').value
-                    });
+                    var body = getSelectedUserBody();
+                    if (body) {
+                        body.path = document.querySelector('#DoubanExportPath').value;
+                        postRecommendationsAction('ImportDouban', body);
+                    }
                 });
 
             document.querySelector('#RecommendationsRefresh')
                 .addEventListener('click', function() {
-                    postRecommendationsAction('Refresh', {
-                        userId: getTestUserIdOrNull()
-                    });
+                    var body = getSelectedUserBody();
+                    if (body) {
+                        postRecommendationsAction('Refresh', body);
+                    }
                 });
 
             document.querySelector('#RecommendationsGenerate')
                 .addEventListener('click', function() {
-                    postRecommendationsAction('Generate', {
-                        userId: getTestUserIdOrNull()
-                    });
+                    var body = getSelectedUserBody();
+                    if (body) {
+                        postRecommendationsAction('Generate', body);
+                    }
                 });
 
             document.querySelector('#RecommendationsUpdateCollection')
                 .addEventListener('click', function() {
-                    postRecommendationsAction('UpdateCollection', {
-                        userId: getTestUserIdOrNull()
-                    });
+                    var body = getSelectedUserBody();
+                    if (body) {
+                        postRecommendationsAction('UpdateCollection', body);
+                    }
                 });
 
             document.querySelector('#RecommendationsMatchDouban')
                 .addEventListener('click', function() {
-                    postRecommendationsAction('MatchDouban', {
-                        userId: getTestUserIdOrNull()
-                    });
+                    var body = getSelectedUserBody();
+                    if (body) {
+                        postRecommendationsAction('MatchDouban', body);
+                    }
                 });
         </script>
     </div>

@@ -63,6 +63,22 @@ public sealed class RecommendationEngineTests
     }
 
     [Fact]
+    public void CollectionNameUsesUsernameTemplatePerUser()
+    {
+        var userId = Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
+
+        Assert.Equal(
+            "Recommended for Alice",
+            ManagedCollectionService.BuildCollectionName("Recommended for {username}", "Alice", userId));
+        Assert.Equal(
+            "Alice picks",
+            ManagedCollectionService.BuildCollectionName("{user} picks", "Alice", userId));
+        Assert.Equal(
+            "Recommended for aaaaaaaa",
+            ManagedCollectionService.BuildCollectionName("Recommended for {username}", null, userId));
+    }
+
+    [Fact]
     public async Task OrchestratorRejectsWatchedLlmOutputWhenWatchedItemsAreDisabled()
     {
         var dbPath = Path.Combine(Path.GetTempPath(), "jellyfin-recommendations-tests", $"{Guid.NewGuid():N}.db");
