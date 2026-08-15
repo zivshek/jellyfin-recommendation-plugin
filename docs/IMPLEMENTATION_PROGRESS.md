@@ -4,7 +4,7 @@ Last updated: 2026-08-14
 
 ## Current Status
 
-Planning and repository setup are in progress.
+The code-level MVP implementation is complete and builds/tests locally. Live Jellyfin smoke testing remains to confirm plugin loading, dashboard page behavior, playback events, and collection updates against a running server.
 
 ## Completed
 
@@ -15,37 +15,86 @@ Planning and repository setup are in progress.
 - Added local environment scaffolding:
   - `.env.example` is committed as a safe template.
   - `.env.local` is ignored and reserved for real local testing values.
+- Added `scripts/Load-LocalEnv.ps1` and `scripts/test-jellyfin-status.ps1` for non-mutating local smoke commands that consume `.env.local`.
+- Hardened `scripts/test-jellyfin-status.ps1` with duplicated-scheme normalization and actionable unreachable-server errors.
 - Added a future-conversation prompt in `docs/NEW_CONVERSATION_PROMPT.md`.
+- Scaffolded `Jellyfin.Plugin.Recommendations.sln`.
+- Added the `Jellyfin.Plugin.Recommendations` C# plugin project targeting `net9.0`.
+- Added the Jellyfin plugin entry point, configuration model, and embedded configuration page.
+- Added README build/package instructions and local PowerShell scripts.
+- Added SQLite persistence under Jellyfin `DataPath/recommendations/recommendations.db`.
+- Added schema/table coverage for:
+  - `PlaybackEvents`
+  - `UserItemStats`
+  - `LibraryItems`
+  - `ExternalRatings`
+  - `DoubanItems`
+  - `ItemMatches`
+  - `RecommendationRuns`
+  - `RecommendationItems`
+  - `ManagedCollections`
+  - `ManagedCollectionItems`
+- Added hosted startup database initialization.
+- Added Jellyfin playback event monitor for playback start, progress, and stopped events.
+- Added user-data monitor for explicit Jellyfin ratings, likes, favorites, played state, play count, and resume progress.
+- Added library candidate indexing for movies and series.
+- Added people/director/actor metadata to the library candidate cache.
+- Added a Douban import adapter interface, douban-skill-compatible CSV import, and compatible JSON import path.
+- Added Douban subject ID extraction, star rating conversion, UTF-8 BOM CSV handling, and local cache persistence.
+- Added Douban-to-Jellyfin matching by provider IDs when available, then normalized title/year, with review-required title-only matches.
+- Added deterministic recommendation engine and strict recommendation validator.
+- Added OpenAI-compatible LLM client with strict JSON output parsing, compact taste/profile metadata, and deterministic fallback.
+- Added recommendation orchestration with persisted runs/items.
+- Added eligibility validation so LLM output cannot include watched items when watched recommendations are disabled.
+- Added managed collection creation/update and stale plugin-managed item removal.
+- Added admin API endpoints:
+  - `GET /Recommendations/Status`
+  - `POST /Recommendations/RebuildIndex`
+  - `POST /Recommendations/ImportDouban`
+  - `POST /Recommendations/MatchDouban`
+  - `POST /Recommendations/Generate`
+  - `POST /Recommendations/UpdateCollection`
+  - `POST /Recommendations/Refresh`
+- Added configuration-page controls and manual action buttons for the MVP flow.
+- Added separate admin buttons for test connection, rebuild index, Douban import/match, recommendation generation, collection update, and full refresh.
+- Added admin status fields for last library index, last Douban import, and last recommendation run.
+- Added admin-page error handling so failed manual actions surface actionable status text.
+- Added package `meta.json` so the publish output follows Jellyfin plugin manifest conventions.
+- Added scheduled refresh task.
+- Added scheduled/full-refresh guard so Douban import is skipped when the Douban provider is disabled.
+- Added a minimal LLM request throttle and structured LLM request/response-count logs.
+- Added repeatable schema upgrade handling for Douban provider-ID columns.
+- Added unit tests for storage, playback aggregation, Douban CSV/JSON parsing/import, provider-ID matching, schema upgrades, recommendation validation/scoring, LLM eligibility validation, and collection diffing.
+- Verified `dotnet test Jellyfin.Plugin.Recommendations.sln --configuration Release` succeeds with 20 passing tests.
+- Verified `dotnet publish Jellyfin.Plugin.Recommendations/Jellyfin.Plugin.Recommendations.csproj --configuration Release --output artifacts/Recommendations` creates a copyable plugin folder with SQLite dependencies.
+- Verified the publish output includes `meta.json`.
 
-## In Progress
+## Remaining Live Checks
 
-- Initial documentation commit.
-
-## Next Steps
-
-1. Confirm target Jellyfin server version.
-2. Scaffold the plugin solution and project.
-3. Add the plugin entry point and configuration model.
-4. Add a minimal configuration page.
-5. Add `douban-skill` CSV import tests for `影视.csv`.
-6. Verify the plugin builds.
+1. Confirm the target Jellyfin server version is compatible with `Jellyfin.Controller`/`Jellyfin.Model` `10.11.11`.
+2. Copy `artifacts/Recommendations` into the Jellyfin plugin folder and restart Jellyfin.
+3. Confirm Jellyfin lists the plugin as installed and supported.
+4. Confirm the configuration page loads and saves settings.
+5. Play/stop a test item and confirm playback history rows are created.
+6. Run the admin refresh flow against a real library and confirm the managed collection is created/updated.
 
 ## Decisions
 
 - Recommendations must only include existing media from the Jellyfin library.
-- Explicit user ratings should outrank inferred completion signals.
-- Douban support should start with manual import and local cache, then grow into public feed or Frodo-style sync later.
-- The first Douban import target should be the `douban-skill` `影视.csv` output format.
+- Explicit user ratings outrank inferred completion signals in scoring.
+- Douban support starts with manual CSV import and local cache.
+- The first Douban import target is the douban-skill movie/TV CSV output format.
 - Do not shell out to the `douban-skill` scripts from the Jellyfin plugin runtime; port needed sync logic to C# later.
-- Uncertain Douban-to-Jellyfin matches should require review before affecting recommendations.
-- LLM output must be validated before collection updates.
+- Uncertain Douban-to-Jellyfin matches are stored with `RequiresReview = true` and do not attach external ratings automatically.
+- LLM output is validated against candidate IDs before persistence or collection updates.
+- Deterministic ranking is always available as a fallback when the LLM is disabled, fails, or returns no valid IDs.
 
 ## Risks
 
-- Jellyfin plugin API compatibility can shift between server versions.
-- Douban does not provide a clean current official API path for all desired data.
-- LLM output can be invalid or unstable without strict schema validation.
-- Collections are a stable MVP UI, but they are less prominent than a true custom homepage row.
+- Live plugin loading can still expose Jellyfin runtime behavior not covered by compile-time packages.
+- The admin page JavaScript uses Jellyfin Web plugin-page conventions and needs browser verification in a running server.
+- SQLite native dependency loading should be smoke-tested on the deployment OS/container image.
+- Native Douban RSS/Frodo sync is intentionally out of MVP scope.
 
 ## Local Testing Notes
 
@@ -62,5 +111,8 @@ LLM_API_KEY=
 LLM_MODEL=
 DOUBAN_USER_ID=
 DOUBAN_EXPORT_PATH=
+DOUBAN_SYNC_PROVIDER=csv
+DOUBAN_SYNC_INTERVAL_HOURS=24
+SCHEDULED_REFRESH_INTERVAL_HOURS=24
 PLUGIN_TEST_DATA_DIR=
 ```

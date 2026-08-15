@@ -22,23 +22,19 @@ Important docs:
 - Keep .env.local local and uncommitted.
 - .env.example is the committed template.
 
-Current planned milestones:
-1. Scaffold C# Jellyfin plugin project targeting the user's Jellyfin version.
-2. Add plugin entry point, configuration model, and config page.
-3. Capture playback events and persist watch history.
-4. Read Jellyfin user data such as Rating, Likes, IsFavorite, PlayCount, Played, and PlayedPercentage.
-5. Index library candidates.
-6. Add Douban CSV/JSON import and local cache, starting with daymade douban-skill `影视.csv` compatibility.
-7. Add deterministic pre-ranker and LLM reranker.
-8. Create/update the managed recommendation collection.
-9. Add admin actions and scheduled refresh.
+Current status:
+- The code-level MVP is implemented.
+- `dotnet test Jellyfin.Plugin.Recommendations.sln --configuration Release` passes with 20 tests.
+- `dotnet publish Jellyfin.Plugin.Recommendations\Jellyfin.Plugin.Recommendations.csproj --configuration Release --output artifacts\Recommendations` creates a copyable plugin folder with `meta.json` and SQLite dependencies.
+- Remaining checks require a running Jellyfin server: install the artifact, confirm the plugin loads, verify the dashboard page, play/stop a test item, and confirm the managed collection updates.
 
 Local testing:
-Use .env.local for Jellyfin URL, API key, test user ID, LLM settings, and Douban import settings. Never commit real secrets.
+Use .env.local for Jellyfin URL, API key, test user ID, LLM settings, and Douban import settings. Never commit real secrets. `scripts\test-jellyfin-status.ps1` is a read-only smoke probe for the configured Jellyfin URL.
 
 Engineering constraints:
 - Follow existing repo style as it emerges.
 - Keep changes scoped.
 - Avoid committing generated build output, secrets, or local machine config.
 - Prefer deterministic validation around all external/LLM results.
+- Do not delete anything from the Jellyfin server!
 ```

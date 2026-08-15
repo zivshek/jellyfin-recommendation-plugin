@@ -8,6 +8,7 @@ obj/
 .vscode/
 TestResults/
 coverage/
+artifacts/
 
 *.user
 *.suo

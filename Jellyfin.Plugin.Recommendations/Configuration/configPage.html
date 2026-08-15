@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Recommendations</title>
+</head>
+<body>
+    <div id="RecommendationsConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-select,emby-checkbox">
+        <div data-role="content">
+            <div class="content-primary">
+                <form id="RecommendationsConfigForm">
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="JellyfinBaseUrl">Jellyfin Base URL</label>
+                        <input id="JellyfinBaseUrl" name="JellyfinBaseUrl" type="url" is="emby-input" />
+                        <div class="fieldDescription">Used by local and manual test flows.</div>
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="TestApiKey">Test API Key</label>
+                        <input id="TestApiKey" name="TestApiKey" type="password" is="emby-input" />
+                        <div class="fieldDescription">Stored by Jellyfin plugin configuration. Leave blank until manual testing is needed.</div>
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="TestUserId">Test User ID</label>
+                        <input id="TestUserId" name="TestUserId" type="text" is="emby-input" />
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="RecommendationCollectionName">Recommendation Collection Name</label>
+                        <input id="RecommendationCollectionName" name="RecommendationCollectionName" type="text" is="emby-input" />
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="RecommendationLimit">Recommendation Limit</label>
+                        <input id="RecommendationLimit" name="RecommendationLimit" type="number" is="emby-input" min="1" max="100" />
+                    </div>
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="IncludeWatchedItems" name="IncludeWatchedItems" type="checkbox" is="emby-checkbox" />
+                            <span>Include watched items</span>
+                        </label>
+                    </div>
+                    <div class="selectContainer">
+                        <label class="selectLabel" for="LlmProvider">LLM Provider</label>
+                        <select is="emby-select" id="LlmProvider" name="LlmProvider" class="emby-select-withcolor emby-select">
+                            <option value="openai-compatible">OpenAI-compatible</option>
+                            <option value="disabled">Disabled</option>
+                        </select>
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="LlmBaseUrl">LLM Base URL</label>
+                        <input id="LlmBaseUrl" name="LlmBaseUrl" type="url" is="emby-input" />
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="LlmApiKey">LLM API Key</label>
+                        <input id="LlmApiKey" name="LlmApiKey" type="password" is="emby-input" />
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="LlmModel">LLM Model</label>
+                        <input id="LlmModel" name="LlmModel" type="text" is="emby-input" />
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="DoubanUserId">Douban User ID</label>
+                        <input id="DoubanUserId" name="DoubanUserId" type="text" is="emby-input" />
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="DoubanExportPath">Douban Export Path</label>
+                        <input id="DoubanExportPath" name="DoubanExportPath" type="text" is="emby-input" />
+                    </div>
+                    <div class="selectContainer">
+                        <label class="selectLabel" for="DoubanSyncProvider">Douban Sync Provider</label>
+                        <select is="emby-select" id="DoubanSyncProvider" name="DoubanSyncProvider" class="emby-select-withcolor emby-select">
+                            <option value="csv">CSV/JSON import</option>
+                            <option value="disabled">Disabled</option>
+                        </select>
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="DoubanSyncIntervalHours">Douban Sync Interval Hours</label>
+                        <input id="DoubanSyncIntervalHours" name="DoubanSyncIntervalHours" type="number" is="emby-input" min="1" />
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="ScheduledRefreshIntervalHours">Scheduled Refresh Interval Hours</label>
+                        <input id="ScheduledRefreshIntervalHours" name="ScheduledRefreshIntervalHours" type="number" is="emby-input" min="1" />
+                    </div>
+                    <div>
+                        <button is="emby-button" type="submit" class="raised button-submit block emby-button">
+                            <span>Save</span>
+                        </button>
+                    </div>
+                </form>
+                <div class="verticalSection">
+                    <button is="emby-button" type="button" class="raised block emby-button" id="RecommendationsTestConnection">
+                        <span>Test Jellyfin Connection</span>
+                    </button>
+                    <button is="emby-button" type="button" class="raised block emby-button" id="RecommendationsRebuildIndex">
+                        <span>Rebuild Index</span>
+                    </button>
+                    <button is="emby-button" type="button" class="raised block emby-button" id="RecommendationsImportDouban">
+                        <span>Import Douban Export</span>
+                    </button>
+                    <button is="emby-button" type="button" class="raised block emby-button" id="RecommendationsMatchDouban">
+                        <span>Match Douban Items</span>
+                    </button>
+                    <button is="emby-button" type="button" class="raised block emby-button" id="RecommendationsGenerate">
+                        <span>Generate Recommendations</span>
+                    </button>
+                    <button is="emby-button" type="button" class="raised block emby-button" id="RecommendationsUpdateCollection">
+                        <span>Update Collection</span>
+                    </button>
+                    <button is="emby-button" type="button" class="raised block emby-button" id="RecommendationsRefresh">
+                        <span>Generate and Update Collection</span>
+                    </button>
+                    <div id="RecommendationsStatus" class="fieldDescription"></div>
+                </div>
+            </div>
+        </div>
+        <script type="text/javascript">
+            var RecommendationsConfig = {
+                pluginUniqueId: 'e72f3148-e8c8-4f3c-a3f1-3cbce4487b8f',
+                fields: [
+                    'JellyfinBaseUrl',
+                    'TestApiKey',
+                    'TestUserId',
+                    'RecommendationCollectionName',
+                    'RecommendationLimit',
+                    'IncludeWatchedItems',
+                    'LlmProvider',
+                    'LlmBaseUrl',
+                    'LlmApiKey',
+                    'LlmModel',
+                    'DoubanUserId',
+                    'DoubanExportPath',
+                    'DoubanSyncProvider',
+                    'DoubanSyncIntervalHours',
+                    'ScheduledRefreshIntervalHours'
+                ]
+            };
+
+            document.querySelector('#RecommendationsConfigPage')
+                .addEventListener('pageshow', function() {
+                    Dashboard.showLoadingMsg();
+                    ApiClient.getPluginConfiguration(RecommendationsConfig.pluginUniqueId).then(function(config) {
+                        RecommendationsConfig.fields.forEach(function(field) {
+                            var element = document.querySelector('#' + field);
+                            if (element.type === 'checkbox') {
+                                element.checked = !!config[field];
+                            } else {
+                                element.value = config[field] || '';
+                            }
+                        });
+                        loadRecommendationsStatus();
+                        Dashboard.hideLoadingMsg();
+                    }, handleRecommendationsError);
+                });
+
+            document.querySelector('#RecommendationsConfigForm')
+                .addEventListener('submit', function(e) {
+                    Dashboard.showLoadingMsg();
+                    ApiClient.getPluginConfiguration(RecommendationsConfig.pluginUniqueId).then(function(config) {
+                        RecommendationsConfig.fields.forEach(function(field) {
+                            var element = document.querySelector('#' + field);
+                            config[field] = element.type === 'checkbox' ? element.checked : element.value;
+                        });
+                        config.DoubanSyncIntervalHours = parseInt(config.DoubanSyncIntervalHours, 10) || 24;
+                        config.RecommendationLimit = parseInt(config.RecommendationLimit, 10) || 20;
+                        config.ScheduledRefreshIntervalHours = parseInt(config.ScheduledRefreshIntervalHours, 10) || 24;
+                        ApiClient.updatePluginConfiguration(RecommendationsConfig.pluginUniqueId, config).then(function(result) {
+                            Dashboard.processPluginConfigurationUpdateResult(result);
+                            loadRecommendationsStatus();
+                        }, handleRecommendationsError);
+                    }, handleRecommendationsError);
+                    e.preventDefault();
+                    return false;
+                });
+
+            function setRecommendationsStatus(message) {
+                document.querySelector('#RecommendationsStatus').innerText = message;
+            }
+
+            function handleRecommendationsError(error) {
+                Dashboard.hideLoadingMsg();
+                var message = 'Action failed.';
+                if (error) {
+                    if (error.responseJSON && (error.responseJSON.message || error.responseJSON.Message)) {
+                        message = error.responseJSON.message || error.responseJSON.Message;
+                    } else if (error.responseText) {
+                        message = error.responseText;
+                    } else if (error.statusText) {
+                        message = error.statusText;
+                    }
+                }
+
+                setRecommendationsStatus(message);
+            }
+
+            function postRecommendationsAction(path, body) {
+                Dashboard.showLoadingMsg();
+                return ApiClient.ajax({
+                    type: 'POST',
+                    url: ApiClient.getUrl('Recommendations/' + path),
+                    data: JSON.stringify(body || {}),
+                    contentType: 'application/json'
+                }).then(function(result) {
+                    setRecommendationsStatus(result.message || result.Message || 'Done');
+                    Dashboard.hideLoadingMsg();
+                    loadRecommendationsStatus();
+                }, handleRecommendationsError);
+            }
+
+            function getTestUserIdOrNull() {
+                var value = document.querySelector('#TestUserId').value;
+                return value && value.trim() ? value.trim() : null;
+            }
+
+            function loadRecommendationsStatus() {
+                ApiClient.ajax({
+                    type: 'GET',
+                    url: ApiClient.getUrl('Recommendations/Status')
+                }).then(function(status) {
+                    var lastLibrary = status.lastLibraryIndexedAt
+                        ? ' | Library indexed: ' + status.lastLibraryIndexedAt
+                        : ' | Library indexed: never';
+                    var lastDouban = status.lastDoubanImportAt
+                        ? ' | Douban import: ' + status.lastDoubanImportAt
+                        : ' | Douban import: never';
+                    var lastRun = status.lastRecommendationRunAt
+                        ? ' | Last run: ' + status.lastRecommendationStatus + ' at ' + status.lastRecommendationRunAt
+                        : ' | Last run: never';
+                    document.querySelector('#RecommendationsStatus').innerText =
+                        'Library items: ' + status.libraryItemCount +
+                        ' | Douban items: ' + status.doubanItemCount +
+                        ' | Runs: ' + status.recommendationRunCount +
+                        lastLibrary +
+                        lastDouban +
+                        lastRun;
+                }, handleRecommendationsError);
+            }
+
+            document.querySelector('#RecommendationsTestConnection')
+                .addEventListener('click', function() {
+                    Dashboard.showLoadingMsg();
+                    ApiClient.ajax({
+                        type: 'GET',
+                        url: ApiClient.getUrl('Recommendations/Status')
+                    }).then(function() {
+                        document.querySelector('#RecommendationsStatus').innerText = 'Connection OK';
+                        Dashboard.hideLoadingMsg();
+                        loadRecommendationsStatus();
+                    }, handleRecommendationsError);
+                });
+
+            document.querySelector('#RecommendationsRebuildIndex')
+                .addEventListener('click', function() {
+                    postRecommendationsAction('RebuildIndex');
+                });
+
+            document.querySelector('#RecommendationsImportDouban')
+                .addEventListener('click', function() {
+                    postRecommendationsAction('ImportDouban', {
+                        userId: getTestUserIdOrNull(),
+                        path: document.querySelector('#DoubanExportPath').value
+                    });
+                });
+
+            document.querySelector('#RecommendationsRefresh')
+                .addEventListener('click', function() {
+                    postRecommendationsAction('Refresh', {
+                        userId: getTestUserIdOrNull()
+                    });
+                });
+
+            document.querySelector('#RecommendationsGenerate')
+                .addEventListener('click', function() {
+                    postRecommendationsAction('Generate', {
+                        userId: getTestUserIdOrNull()
+                    });
+                });
+
+            document.querySelector('#RecommendationsUpdateCollection')
+                .addEventListener('click', function() {
+                    postRecommendationsAction('UpdateCollection', {
+                        userId: getTestUserIdOrNull()
+                    });
+                });
+
+            document.querySelector('#RecommendationsMatchDouban')
+                .addEventListener('click', function() {
+                    postRecommendationsAction('MatchDouban', {
+                        userId: getTestUserIdOrNull()
+                    });
+                });
+        </script>
+    </div>
+</body>
+</html>

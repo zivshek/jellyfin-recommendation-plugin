@@ -1,0 +1,17 @@
+{
+  "category": "General",
+  "changelog": "Initial MVP implementation.",
+  "description": "LLM-assisted Jellyfin recommendations from local watch history, Jellyfin user signals, and optional Douban ratings.",
+  "guid": "e72f3148-e8c8-4f3c-a3f1-3cbce4487b8f",
+  "name": "Recommendations",
+  "overview": "Per-user recommendations surfaced through managed Jellyfin collections.",
+  "owner": "jellyfin-recommendation-plugin contributors",
+  "targetAbi": "10.11.0.0",
+  "timestamp": "2026-08-14T00:00:00Z",
+  "version": "0.1.0.0",
+  "status": 1,
+  "autoUpdate": false,
+  "assemblies": [
+    "Jellyfin.Plugin.Recommendations.dll"
+  ]
+}
