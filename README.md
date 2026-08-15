@@ -48,6 +48,12 @@ To collect a copyable plugin folder with SQLite dependencies, run:
 .\scripts\package.ps1
 ```
 
+To stamp a specific local package version, pass `-Version`:
+
+```powershell
+.\scripts\package.ps1 -Version 0.1.1.3
+```
+
 The plugin package is emitted under:
 
 ```text
@@ -59,15 +65,17 @@ The package includes `meta.json`, the plugin DLL, and required SQLite dependenci
 To build the ZIP and Jellyfin plugin repository manifest used by releases, run:
 
 ```powershell
-.\scripts\package-release.ps1 -Repository zivshek/jellyfin-recommendation-plugin -Tag v0.1.0
+.\scripts\package-release.ps1 -Repository zivshek/jellyfin-recommendation-plugin -Tag v0.1.1.3
 ```
 
 This emits:
 
 ```text
-artifacts\repository\Jellyfin.Plugin.Recommendations_0.1.0.0.zip
+artifacts\repository\Jellyfin.Plugin.Recommendations_0.1.1.3.zip
 artifacts\repository\manifest.json
 ```
+
+The release package script derives the plugin version from the tag and stamps the ZIP name, repository manifest, packaged `meta.json`, and assembly version with the same value.
 
 ## Install From Plugin Repository
 
@@ -82,8 +90,8 @@ Then open **Catalog**, install **Recommendations**, and restart Jellyfin if prom
 To publish a new catalog release:
 
 ```powershell
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.1.1.3
+git push origin v0.1.1.3
 ```
 
 The release workflow runs tests, creates the plugin ZIP, and uploads `manifest.json` plus the ZIP to the GitHub Release.

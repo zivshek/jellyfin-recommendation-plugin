@@ -64,6 +64,7 @@ The code-level MVP implementation is complete and builds/tests locally. Live Jel
 - Added admin-page error handling so failed manual actions surface actionable status text.
 - Exposed the Recommendations configuration page in Jellyfin's dashboard sidebar under the Plugins section.
 - Added package `meta.json` so the publish output follows Jellyfin plugin manifest conventions.
+- Stamped release/local package versions consistently across the manifest, packaged `meta.json`, and plugin assembly.
 - Added scheduled refresh task.
 - Added scheduled/full-refresh guard so Douban import is skipped when the Douban provider is disabled.
 - Added a minimal LLM request throttle and structured LLM request/response-count logs.

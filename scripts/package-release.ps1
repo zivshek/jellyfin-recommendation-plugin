@@ -32,13 +32,31 @@ while ($versionParts.Count -lt 4) {
 }
 
 $manifestVersion = [string]::Join(".", $versionParts[0..3])
+if ($versionParts[0..3] | Where-Object { $_ -notmatch "^\d+$" }) {
+    throw "Version '$Version' must resolve to four numeric version parts."
+}
+
 $zipName = "Jellyfin.Plugin.Recommendations_$manifestVersion.zip"
 $zipPath = Join-Path $repositoryDir $zipName
 $manifestPath = Join-Path $repositoryDir "manifest.json"
 
 New-Item -ItemType Directory -Force -Path $packageDir, $repositoryDir | Out-Null
 
-dotnet publish $project --configuration Release --output $packageDir
+$publishProperties = @(
+    "/p:Version=$manifestVersion",
+    "/p:PackageVersion=$manifestVersion",
+    "/p:AssemblyVersion=$manifestVersion",
+    "/p:FileVersion=$manifestVersion",
+    "/p:InformationalVersion=$manifestVersion"
+)
+
+dotnet publish $project --configuration Release --output $packageDir @publishProperties
+
+$packagedMetaPath = Join-Path $packageDir "meta.json"
+$meta = Get-Content -LiteralPath $packagedMetaPath -Raw | ConvertFrom-Json
+$meta.version = $manifestVersion
+$meta.timestamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ", [System.Globalization.CultureInfo]::InvariantCulture)
+$meta | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $packagedMetaPath -Encoding UTF8
 
 if (Test-Path -LiteralPath $zipPath) {
     Remove-Item -LiteralPath $zipPath
@@ -46,7 +64,7 @@ if (Test-Path -LiteralPath $zipPath) {
 
 Compress-Archive -Path (Join-Path $packageDir "*") -DestinationPath $zipPath -CompressionLevel Optimal
 
-$meta = Get-Content -LiteralPath $metaPath -Raw | ConvertFrom-Json
+$meta = Get-Content -LiteralPath $packagedMetaPath -Raw | ConvertFrom-Json
 $checksum = (Get-FileHash -LiteralPath $zipPath -Algorithm MD5).Hash.ToLowerInvariant()
 $sourceUrl = "https://github.com/$Repository/releases/download/$Tag/$zipName"
 $timestamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss", [System.Globalization.CultureInfo]::InvariantCulture)
