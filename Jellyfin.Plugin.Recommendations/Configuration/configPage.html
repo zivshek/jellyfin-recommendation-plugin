@@ -74,11 +74,8 @@
                 <div class="verticalSection">
                     <div class="selectContainer">
                         <label class="selectLabel" for="RecommendationsManualUserId">User</label>
-                        <select is="emby-select" id="RecommendationsManualUserId" class="emby-select-withcolor emby-select"></select>
+                        <select id="RecommendationsManualUserId" class="emby-select-withcolor emby-select"></select>
                     </div>
-                    <button is="emby-button" type="button" class="raised block emby-button" id="RecommendationsTestConnection">
-                        <span>Test Jellyfin Connection</span>
-                    </button>
                     <button is="emby-button" type="button" class="raised block emby-button" id="RecommendationsRebuildIndex">
                         <span>Rebuild Index</span>
                     </button>
@@ -172,10 +169,36 @@
                         message = error.responseText;
                     } else if (error.statusText) {
                         message = error.statusText;
+                    } else if (error.message) {
+                        message = error.message;
                     }
                 }
 
                 setRecommendationsStatus(message);
+            }
+
+            function readProperty(value, camelName, pascalName, fallback) {
+                if (!value) {
+                    return fallback;
+                }
+
+                if (value[camelName] !== undefined && value[camelName] !== null) {
+                    return value[camelName];
+                }
+
+                if (value[pascalName] !== undefined && value[pascalName] !== null) {
+                    return value[pascalName];
+                }
+
+                return fallback;
+            }
+
+            function getResultMessage(result) {
+                return readProperty(result, 'message', 'Message', 'Done');
+            }
+
+            function getResultSuccess(result) {
+                return readProperty(result, 'success', 'Success', true);
             }
 
             function postRecommendationsAction(path, body) {
@@ -186,9 +209,11 @@
                     data: JSON.stringify(body || {}),
                     contentType: 'application/json'
                 }).then(function(result) {
-                    setRecommendationsStatus(result.message || result.Message || 'Done');
+                    setRecommendationsStatus(getResultMessage(result));
                     Dashboard.hideLoadingMsg();
-                    loadRecommendationsStatus();
+                    if (getResultSuccess(result)) {
+                        loadRecommendationsStatus();
+                    }
                 }, handleRecommendationsError);
             }
 
@@ -202,23 +227,71 @@
             }
 
             function loadRecommendationUsers() {
+                var select = document.querySelector('#RecommendationsManualUserId');
+                select.innerHTML = '';
+                var loadingOption = document.createElement('option');
+                loadingOption.value = '';
+                loadingOption.innerText = 'Loading users...';
+                select.appendChild(loadingOption);
                 return ApiClient.ajax({
                     type: 'GET',
                     url: ApiClient.getUrl('Recommendations/Users')
                 }).then(function(users) {
-                    var select = document.querySelector('#RecommendationsManualUserId');
-                    select.innerHTML = '';
-                    (users || []).forEach(function(user) {
+                    populateRecommendationUsers(users);
+                }, function(error) {
+                    if (typeof ApiClient.getUsers === 'function') {
+                        return ApiClient.getUsers().then(populateRecommendationUsers, handleRecommendationsError);
+                    }
+
+                    handleRecommendationsError(error);
+                });
+            }
+
+            function populateRecommendationUsers(users) {
+                var userList = users || [];
+                if (userList.items || userList.Items) {
+                    userList = userList.items || userList.Items;
+                }
+
+                if (!Array.isArray(userList)) {
+                    userList = [];
+                }
+
+                var previousValue = document.querySelector('#RecommendationsManualUserId').value;
+                var sortedUsers = userList.slice().sort(function(left, right) {
+                    var leftName = readProperty(left, 'name', 'Name', readProperty(left, 'username', 'Username', ''));
+                    var rightName = readProperty(right, 'name', 'Name', readProperty(right, 'username', 'Username', ''));
+                    return leftName.localeCompare(rightName);
+                });
+
+                var select = document.querySelector('#RecommendationsManualUserId');
+                select.innerHTML = '';
+                sortedUsers.forEach(function(user) {
+                        var id = readProperty(user, 'id', 'Id', '');
+                        if (!id) {
+                            return;
+                        }
+
                         var option = document.createElement('option');
-                        option.value = user.id || user.Id;
-                        option.innerText = user.name || user.Name || option.value;
+                        option.value = id;
+                        option.innerText = readProperty(user, 'name', 'Name', readProperty(user, 'username', 'Username', id));
                         select.appendChild(option);
                     });
 
-                    if (!select.value && select.options.length > 0) {
+                if (select.options.length === 0) {
+                    var emptyOption = document.createElement('option');
+                    emptyOption.value = '';
+                    emptyOption.innerText = 'No users found';
+                    select.appendChild(emptyOption);
+                }
+
+                if (previousValue) {
+                    select.value = previousValue;
+                }
+
+                if (!select.value && select.options.length > 0) {
                         select.selectedIndex = 0;
                     }
-                }, handleRecommendationsError);
             }
 
             function getSelectedUserBody() {
@@ -235,37 +308,31 @@
                     type: 'GET',
                     url: ApiClient.getUrl('Recommendations/Status')
                 }).then(function(status) {
-                    var lastLibrary = status.lastLibraryIndexedAt
-                        ? ' | Library indexed: ' + status.lastLibraryIndexedAt
+                    var libraryItemCount = readProperty(status, 'libraryItemCount', 'LibraryItemCount', 0);
+                    var doubanItemCount = readProperty(status, 'doubanItemCount', 'DoubanItemCount', 0);
+                    var recommendationRunCount = readProperty(status, 'recommendationRunCount', 'RecommendationRunCount', 0);
+                    var lastLibraryIndexedAt = readProperty(status, 'lastLibraryIndexedAt', 'LastLibraryIndexedAt', null);
+                    var lastDoubanImportAt = readProperty(status, 'lastDoubanImportAt', 'LastDoubanImportAt', null);
+                    var lastRecommendationRunAt = readProperty(status, 'lastRecommendationRunAt', 'LastRecommendationRunAt', null);
+                    var lastRecommendationStatus = readProperty(status, 'lastRecommendationStatus', 'LastRecommendationStatus', '');
+                    var lastLibrary = lastLibraryIndexedAt
+                        ? ' | Library indexed: ' + lastLibraryIndexedAt
                         : ' | Library indexed: never';
-                    var lastDouban = status.lastDoubanImportAt
-                        ? ' | Douban import: ' + status.lastDoubanImportAt
+                    var lastDouban = lastDoubanImportAt
+                        ? ' | Douban import: ' + lastDoubanImportAt
                         : ' | Douban import: never';
-                    var lastRun = status.lastRecommendationRunAt
-                        ? ' | Last run: ' + status.lastRecommendationStatus + ' at ' + status.lastRecommendationRunAt
+                    var lastRun = lastRecommendationRunAt
+                        ? ' | Last run: ' + lastRecommendationStatus + ' at ' + lastRecommendationRunAt
                         : ' | Last run: never';
                     document.querySelector('#RecommendationsStatus').innerText =
-                        'Library items: ' + status.libraryItemCount +
-                        ' | Douban items: ' + status.doubanItemCount +
-                        ' | Runs: ' + status.recommendationRunCount +
+                        'Library items: ' + libraryItemCount +
+                        ' | Douban items: ' + doubanItemCount +
+                        ' | Runs: ' + recommendationRunCount +
                         lastLibrary +
                         lastDouban +
                         lastRun;
                 }, handleRecommendationsError);
             }
-
-            document.querySelector('#RecommendationsTestConnection')
-                .addEventListener('click', function() {
-                    Dashboard.showLoadingMsg();
-                    ApiClient.ajax({
-                        type: 'GET',
-                        url: ApiClient.getUrl('Recommendations/Status')
-                    }).then(function() {
-                        document.querySelector('#RecommendationsStatus').innerText = 'Connection OK';
-                        Dashboard.hideLoadingMsg();
-                        loadRecommendationsStatus();
-                    }, handleRecommendationsError);
-                });
 
             document.querySelector('#RecommendationsRebuildIndex')
                 .addEventListener('click', function() {
