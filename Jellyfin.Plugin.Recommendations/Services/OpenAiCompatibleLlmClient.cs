@@ -28,14 +28,17 @@ public sealed class OpenAiCompatibleLlmClient : ILlmClient
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
     private readonly ILogger<OpenAiCompatibleLlmClient> _logger;
+    private readonly IPluginDiagnosticLog _diagnosticLog;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="OpenAiCompatibleLlmClient"/> class.
     /// </summary>
     /// <param name="logger">Logger.</param>
-    public OpenAiCompatibleLlmClient(ILogger<OpenAiCompatibleLlmClient> logger)
+    /// <param name="diagnosticLog">Plugin diagnostic log.</param>
+    public OpenAiCompatibleLlmClient(ILogger<OpenAiCompatibleLlmClient> logger, IPluginDiagnosticLog diagnosticLog)
     {
         _logger = logger;
+        _diagnosticLog = diagnosticLog;
     }
 
     /// <inheritdoc />
@@ -50,33 +53,82 @@ public sealed class OpenAiCompatibleLlmClient : ILlmClient
             || string.IsNullOrWhiteSpace(configuration.LlmApiKey)
             || string.IsNullOrWhiteSpace(configuration.LlmModel))
         {
+            await AppendLogSafeAsync(
+                string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"LLM skipped: provider={configuration.LlmProvider}; hasBaseUrl={!string.IsNullOrWhiteSpace(configuration.LlmBaseUrl)}; hasApiKey={!string.IsNullOrWhiteSpace(configuration.LlmApiKey)}; hasModel={!string.IsNullOrWhiteSpace(configuration.LlmModel)}."),
+                cancellationToken).ConfigureAwait(false);
             return [];
         }
 
-        using var httpClient = new HttpClient();
-        httpClient.Timeout = TimeSpan.FromSeconds(60);
-        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", configuration.LlmApiKey);
+        try
+        {
+            using var httpClient = new HttpClient();
+            httpClient.Timeout = TimeSpan.FromSeconds(60);
+            httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", configuration.LlmApiKey);
 
-        var endpoint = new Uri(new Uri(configuration.LlmBaseUrl.TrimEnd('/') + "/"), "chat/completions");
-        await WaitForRateLimitAsync(cancellationToken).ConfigureAwait(false);
-        _logger.LogInformation("Requesting {Limit} recommendations from LLM provider {Provider} model {Model}.", limit, configuration.LlmProvider, configuration.LlmModel);
-        using var response = await httpClient.PostAsync(
-            endpoint,
-            new StringContent(BuildRequest(configuration, candidates, limit), Encoding.UTF8, "application/json"),
-            cancellationToken).ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
+            var endpoint = new Uri(new Uri(configuration.LlmBaseUrl.TrimEnd('/') + "/"), "chat/completions");
+            await WaitForRateLimitAsync(cancellationToken).ConfigureAwait(false);
+            _logger.LogInformation("Requesting {Limit} recommendations from LLM provider {Provider} model {Model}.", limit, configuration.LlmProvider, configuration.LlmModel);
+            var requestBody = BuildRequest(configuration, candidates, limit);
+            await AppendLogSafeAsync(
+                string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"LLM request started: provider={configuration.LlmProvider}; model={configuration.LlmModel}; endpoint={endpoint}; candidates={candidates.Count}; limit={limit}; requestChars={requestBody.Length}."),
+                cancellationToken).ConfigureAwait(false);
+            if (configuration.EnableLlmCommunicationLogging)
+            {
+                await AppendLogSafeAsync($"LLM request body: {requestBody}", cancellationToken).ConfigureAwait(false);
+            }
 
-        var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        using var document = JsonDocument.Parse(body);
-        var content = document.RootElement
-            .GetProperty("choices")[0]
-            .GetProperty("message")
-            .GetProperty("content")
-            .GetString();
+            using var response = await httpClient.PostAsync(
+                endpoint,
+                new StringContent(requestBody, Encoding.UTF8, "application/json"),
+                cancellationToken).ConfigureAwait(false);
+            var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            await AppendLogSafeAsync(
+                string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"LLM response received: status={(int)response.StatusCode} {response.ReasonPhrase}; responseChars={body.Length}."),
+                cancellationToken).ConfigureAwait(false);
+            if (configuration.EnableLlmCommunicationLogging)
+            {
+                await AppendLogSafeAsync($"LLM response body: {body}", cancellationToken).ConfigureAwait(false);
+            }
 
-        var parsed = ParseRecommendations(content);
-        _logger.LogInformation("Parsed {RecommendationCount} recommendations from LLM response.", parsed.Count);
-        return parsed;
+            response.EnsureSuccessStatusCode();
+
+            using var document = JsonDocument.Parse(body);
+            var content = document.RootElement
+                .GetProperty("choices")[0]
+                .GetProperty("message")
+                .GetProperty("content")
+                .GetString();
+
+            var parsed = ParseRecommendations(content);
+            _logger.LogInformation("Parsed {RecommendationCount} recommendations from LLM response.", parsed.Count);
+            await AppendLogSafeAsync(
+                string.Create(CultureInfo.InvariantCulture, $"LLM parsed recommendations: count={parsed.Count}."),
+                cancellationToken).ConfigureAwait(false);
+            return parsed;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            await AppendLogSafeAsync($"LLM request failed: {ex.GetType().Name}: {ex.Message}", cancellationToken).ConfigureAwait(false);
+            throw;
+        }
+    }
+
+    private async Task AppendLogSafeAsync(string message, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _diagnosticLog.AppendAsync(message, cancellationToken).ConfigureAwait(false);
+        }
+        catch
+        {
+            // LLM diagnostics should not alter recommendation behavior.
+        }
     }
 
     private static async Task WaitForRateLimitAsync(CancellationToken cancellationToken)

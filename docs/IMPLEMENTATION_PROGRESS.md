@@ -65,6 +65,8 @@ The code-level MVP implementation is complete and builds/tests locally. Live Jel
 - Exposed the Recommendations configuration page in Jellyfin's dashboard sidebar under the Plugins section.
 - Added a plugin diagnostic log file plus admin-page endpoints/link for opening it.
 - Hardened admin-page status/action parsing so string JSON responses do not render `undefined` counts.
+- Versioned the internal settings-page route to reduce stale cached Jellyfin Web plugin UI after upgrades.
+- Added LLM diagnostic logging for skip reasons, HTTP responses, parsed recommendation counts, fallback path selection, and opt-in raw request/response bodies.
 - Added package `meta.json` so the publish output follows Jellyfin plugin manifest conventions.
 - Stamped release/local package versions consistently across the manifest, packaged `meta.json`, and plugin assembly.
 - Added scheduled refresh task.
@@ -72,7 +74,7 @@ The code-level MVP implementation is complete and builds/tests locally. Live Jel
 - Added a minimal LLM request throttle and structured LLM request/response-count logs.
 - Added repeatable schema upgrade handling for Douban provider-ID columns.
 - Added unit tests for storage, playback aggregation, Douban CSV/JSON parsing/import, provider-ID matching, schema upgrades, recommendation validation/scoring, LLM eligibility validation, and collection diffing.
-- Verified `dotnet test Jellyfin.Plugin.Recommendations.sln --configuration Release` succeeds with 23 passing tests.
+- Verified `dotnet test Jellyfin.Plugin.Recommendations.sln --configuration Release` succeeds with 24 passing tests.
 - Verified `dotnet publish Jellyfin.Plugin.Recommendations/Jellyfin.Plugin.Recommendations.csproj --configuration Release --output artifacts/Recommendations` creates a copyable plugin folder with SQLite dependencies.
 - Verified the publish output includes `meta.json`.
 

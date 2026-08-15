@@ -51,7 +51,7 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
         [
             new PluginPageInfo
             {
-                Name = Name,
+                Name = GetVersionedPageName(),
                 DisplayName = "Recommendations",
                 EmbeddedResourcePath = string.Format(
                     CultureInfo.InvariantCulture,
@@ -62,5 +62,11 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
                 MenuIcon = "auto_awesome"
             }
         ];
+    }
+
+    private string GetVersionedPageName()
+    {
+        var version = GetType().Assembly.GetName().Version?.ToString() ?? "0.0.0.0";
+        return string.Format(CultureInfo.InvariantCulture, "{0}_{1}", Name, version.Replace('.', '_'));
     }
 }

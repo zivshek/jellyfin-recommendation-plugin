@@ -16,6 +16,7 @@ public class PluginConfiguration : BasePluginConfiguration
         LlmBaseUrl = string.Empty;
         LlmApiKey = string.Empty;
         LlmModel = string.Empty;
+        EnableLlmCommunicationLogging = false;
         DoubanUserId = string.Empty;
         DoubanExportPath = string.Empty;
         DoubanSyncProvider = "csv";
@@ -45,6 +46,11 @@ public class PluginConfiguration : BasePluginConfiguration
     /// Gets or sets the LLM model name.
     /// </summary>
     public string LlmModel { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether raw LLM request and response bodies are written to the plugin diagnostic log.
+    /// </summary>
+    public bool EnableLlmCommunicationLogging { get; set; }
 
     /// <summary>
     /// Gets or sets the optional Douban user ID.

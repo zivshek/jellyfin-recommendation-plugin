@@ -94,6 +94,7 @@ public sealed class RecommendationEngineTests
         await repository.UpsertUserItemStatsAsync(
             new UserItemStats(userId, watched, "Movie", now, now, 1, 100, true, false, 10, true, true, true, now),
             CancellationToken.None);
+        var diagnosticLog = new PluginDiagnosticLog(Path.Combine(Path.GetTempPath(), "jellyfin-recommendations-tests", $"{Guid.NewGuid():N}.log"));
 
         var orchestrator = new RecommendationOrchestrator(
             repository,
@@ -102,17 +103,22 @@ public sealed class RecommendationEngineTests
             new StaticLlmClient([
                 new ValidatedRecommendation(watched, 1, "LLM tried watched item.", 0.9, "llm"),
                 new ValidatedRecommendation(unwatched, 2, "Valid fallback candidate.", 0.8, "llm")
-            ]));
+            ]),
+            diagnosticLog);
 
         var result = await orchestrator.GenerateAsync(
             userId,
             new PluginConfiguration { LlmProvider = "openai-compatible", LlmBaseUrl = "http://localhost", LlmApiKey = "test", LlmModel = "test", IncludeWatchedItems = false },
             CancellationToken.None);
         var recommendations = await repository.GetLatestRecommendationItemsAsync(userId, CancellationToken.None);
+        var logText = await diagnosticLog.ReadAsync(CancellationToken.None);
 
         Assert.True(result.Success);
         Assert.Single(recommendations);
         Assert.Equal(unwatched, recommendations[0].ItemId);
+        Assert.Contains("LLM recommendation validation", logText);
+        Assert.Contains("returned=2; valid=1", logText);
+        Assert.Contains("LLM generated recommendations", logText);
     }
 
     private static LibraryItem CreateItem(Guid id, string name, double rating)

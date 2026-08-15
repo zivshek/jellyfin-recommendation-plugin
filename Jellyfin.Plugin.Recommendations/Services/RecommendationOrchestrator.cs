@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
@@ -21,6 +22,7 @@ public sealed class RecommendationOrchestrator
     private readonly RecommendationEngine _engine;
     private readonly RecommendationValidator _validator;
     private readonly ILlmClient _llmClient;
+    private readonly IPluginDiagnosticLog _diagnosticLog;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="RecommendationOrchestrator"/> class.
@@ -29,12 +31,14 @@ public sealed class RecommendationOrchestrator
         IRecommendationRepository repository,
         RecommendationEngine engine,
         RecommendationValidator validator,
-        ILlmClient llmClient)
+        ILlmClient llmClient,
+        IPluginDiagnosticLog diagnosticLog)
     {
         _repository = repository;
         _engine = engine;
         _validator = validator;
         _llmClient = llmClient;
+        _diagnosticLog = diagnosticLog;
     }
 
     /// <summary>
@@ -47,8 +51,15 @@ public sealed class RecommendationOrchestrator
             .Where(candidate => IsEligible(candidate, configuration.IncludeWatchedItems))
             .Select(static candidate => candidate.Item.ItemId)
             .ToHashSet();
+        await AppendLogSafeAsync(
+            string.Create(
+                CultureInfo.InvariantCulture,
+                $"Recommendation generation started user={userId}: candidates={candidates.Count}; eligible={eligibleCandidateIds.Count}; limit={configuration.RecommendationLimit}; provider={configuration.LlmProvider}; model={configuration.LlmModel}."),
+            cancellationToken).ConfigureAwait(false);
+
         if (candidates.Count == 0 || eligibleCandidateIds.Count == 0)
         {
+            await AppendLogSafeAsync($"Recommendation generation failed user={userId}: no eligible library candidates found.", cancellationToken).ConfigureAwait(false);
             await StoreRunAsync(userId, "empty", configuration, "Failed", "No eligible library candidates found.", [], cancellationToken).ConfigureAwait(false);
             return new OperationResult(false, "No eligible library candidates found.");
         }
@@ -63,6 +74,11 @@ public sealed class RecommendationOrchestrator
         {
             var llmItems = await _llmClient.RecommendAsync(configuration, candidates, limit, cancellationToken).ConfigureAwait(false);
             recommendations = _validator.Validate(llmItems, eligibleCandidateIds);
+            await AppendLogSafeAsync(
+                string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"LLM recommendation validation user={userId}: returned={llmItems.Count}; valid={recommendations.Count}."),
+                cancellationToken).ConfigureAwait(false);
             if (recommendations.Count > 0)
             {
                 provider = configuration.LlmProvider;
@@ -72,16 +88,38 @@ public sealed class RecommendationOrchestrator
         catch (Exception ex)
         {
             error = ex.Message;
+            await AppendLogSafeAsync($"LLM recommendation path failed user={userId}: {ex.GetType().Name}: {ex.Message}", cancellationToken).ConfigureAwait(false);
         }
 
         if (recommendations.Count == 0)
         {
             recommendations = _engine.Recommend(candidates, limit, configuration.IncludeWatchedItems);
+            await AppendLogSafeAsync(
+                string.Create(CultureInfo.InvariantCulture, $"Deterministic fallback generated recommendations user={userId}: count={recommendations.Count}."),
+                cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            await AppendLogSafeAsync(
+                string.Create(CultureInfo.InvariantCulture, $"LLM generated recommendations user={userId}: count={recommendations.Count}."),
+                cancellationToken).ConfigureAwait(false);
         }
 
         var inputHash = HashCandidates(candidates);
         await StoreRunAsync(userId, inputHash, configuration, "Succeeded", error, recommendations, cancellationToken, provider, model).ConfigureAwait(false);
         return new OperationResult(true, $"Generated {recommendations.Count} recommendations.", recommendations.Count);
+    }
+
+    private async Task AppendLogSafeAsync(string message, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _diagnosticLog.AppendAsync(message, cancellationToken).ConfigureAwait(false);
+        }
+        catch
+        {
+            // Diagnostic logging should never change recommendation behavior.
+        }
     }
 
     /// <summary>

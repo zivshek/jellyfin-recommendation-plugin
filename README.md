@@ -88,12 +88,14 @@ https://github.com/zivshek/jellyfin-recommendation-plugin/releases/latest/downlo
 Then open **Catalog**, install **Recommendations**, and restart Jellyfin if prompted.
 
 The settings page includes an **Open plugin log** link. The plugin also writes the same log to `recommendations.log` in Jellyfin's configured log directory.
+LLM calls are logged with skip reasons, HTTP status, and parsed counts; enable **Log LLM request and response bodies** on the settings page for raw request/response diagnostics.
+The settings page route is versioned internally so browser caches pick up new embedded UI after plugin upgrades.
 
 To publish a new catalog release:
 
 ```powershell
-git tag v0.1.1.3
-git push origin v0.1.1.3
+git tag v0.1.1.6
+git push origin v0.1.1.6
 ```
 
 The release workflow runs tests, creates the plugin ZIP, and uploads `manifest.json` plus the ZIP to the GitHub Release.
