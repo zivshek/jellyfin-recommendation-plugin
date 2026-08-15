@@ -13,15 +13,10 @@ on:
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 jobs:
   release:
     runs-on: windows-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       - name: Check out repository
@@ -72,21 +67,3 @@ jobs:
           path: |
             artifacts/repository/*.zip
             artifacts/repository/manifest.json
-
-      - name: Prepare GitHub Pages repository manifest
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path public | Out-Null
-          Copy-Item -LiteralPath artifacts\repository\manifest.json -Destination public\manifest.json
-
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload GitHub Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: public
-
-      - name: Deploy GitHub Pages repository manifest
-        id: deployment
-        uses: actions/deploy-pages@v4

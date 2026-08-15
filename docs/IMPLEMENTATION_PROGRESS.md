@@ -17,7 +17,7 @@ The code-level MVP implementation is complete and builds/tests locally. Live Jel
   - `.env.local` is ignored and reserved for real local testing values.
 - Added `scripts/Load-LocalEnv.ps1` and `scripts/test-jellyfin-status.ps1` for non-mutating local smoke commands that consume `.env.local`.
 - Hardened `scripts/test-jellyfin-status.ps1` with duplicated-scheme normalization and actionable unreachable-server errors.
-- Added GitHub Actions CI and release workflows that test, package, create release assets, generate a Jellyfin plugin repository manifest, and publish the manifest to GitHub Pages.
+- Added GitHub Actions CI and release workflows that test, package, create release assets, and generate a Jellyfin plugin repository manifest served from GitHub Releases.
 - Added a future-conversation prompt in `docs/NEW_CONVERSATION_PROMPT.md`.
 - Scaffolded `Jellyfin.Plugin.Recommendations.sln`.
 - Added the `Jellyfin.Plugin.Recommendations` C# plugin project targeting `net9.0`.

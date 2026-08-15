@@ -73,12 +73,10 @@ artifacts\repository\manifest.json
 After a tagged GitHub release workflow has run, add this repository URL in Jellyfin under **Dashboard -> Plugins -> Repositories**:
 
 ```text
-https://zivshek.github.io/jellyfin-recommendation-plugin/manifest.json
+https://github.com/zivshek/jellyfin-recommendation-plugin/releases/latest/download/manifest.json
 ```
 
 Then open **Catalog**, install **Recommendations**, and restart Jellyfin if prompted.
-
-If GitHub Pages is not enabled yet, use the exact release asset URL for the generated manifest from the release page, or enable Pages with GitHub Actions as the source.
 
 To publish a new catalog release:
 
@@ -87,7 +85,7 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-The release workflow runs tests, creates the plugin ZIP, uploads `manifest.json` and the ZIP to the GitHub Release, and publishes `manifest.json` to GitHub Pages.
+The release workflow runs tests, creates the plugin ZIP, and uploads `manifest.json` plus the ZIP to the GitHub Release.
 
 For local Jellyfin testing, copy the built plugin files into a subfolder of your Jellyfin plugin directory, then restart Jellyfin. The direct-install default on Windows is:
 
